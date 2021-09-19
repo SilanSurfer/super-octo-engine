@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct InputRecord {
-    // TODO: It should be serialized from field named "type"
+    #[serde(rename = "type")]
     oper_type: String,
     client: u16,
     tx: u32,
