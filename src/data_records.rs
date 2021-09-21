@@ -62,8 +62,9 @@ client,available,held,total,locked
         writer
             .serialize(output_record)
             .expect("Should be properly serialized");
-        let actual_csv_output = String::from_utf8(writer.into_inner().expect("Should convert to inner"))
-            .expect("Should convert to UTF-8");
+        let actual_csv_output =
+            String::from_utf8(writer.into_inner().expect("Should convert to inner"))
+                .expect("Should convert to UTF-8");
 
         assert_eq!(expected_csv_output, actual_csv_output);
     }
