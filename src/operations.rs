@@ -1,6 +1,22 @@
 use crate::errors::AppError;
 use std::str::FromStr;
 
+pub struct Operation {
+    pub trans_type: OperType,
+    pub amount: f32,
+    pub under_dispute: bool,
+}
+
+impl Operation {
+    pub fn new(operation: OperType, amount: f32) -> Self {
+        Self {
+            trans_type: operation,
+            amount,
+            under_dispute: false,
+        }
+    }
+}
+
 pub enum OperType {
     Deposit,
     Withdrawal,

@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct InputRecord {
     #[serde(rename = "type")]
-    oper_type: String,
-    client: u16,
-    tx: u32,
-    amount: f32,
+    pub oper_type: String,
+    pub client: u16,
+    pub tx: u32,
+    pub amount: f32,
 }
 
 #[derive(Debug, Serialize)]
