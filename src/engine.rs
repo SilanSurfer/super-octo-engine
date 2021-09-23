@@ -51,13 +51,11 @@ impl Engine {
         }
     }
 
+    // TODO: Refactor all "handle" functions...
     async fn handle_deposit(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
-        match self
-            .database
-            .lock()
-            .expect("Lock poisoned!")
-            .get_mut(&record.client)
-        {
+        let mut database = self.database.lock().expect("Lock poisoned!");
+
+        match database.get_mut(&record.client) {
             Some(account) => {
                 if !account.locked {
                     account.available += record.amount;
@@ -72,7 +70,7 @@ impl Engine {
             None => {
                 let mut operations = HashMap::new();
                 operations.insert(record.tx, Operation::new(OperType::Deposit, record.amount));
-                self.database.lock().expect("Lock poisoned!").insert(
+                database.insert(
                     record.client,
                     Account {
                         available: record.amount,
@@ -88,12 +86,9 @@ impl Engine {
     }
 
     async fn handle_withdrawal(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
-        match self
-            .database
-            .lock()
-            .expect("Lock poisoned!")
-            .get_mut(&record.client)
-        {
+        let mut database = self.database.lock().expect("Lock poisoned!");
+
+        match database.get_mut(&record.client) {
             Some(account) => {
                 if !account.locked {
                     if account.available >= record.amount {
@@ -119,12 +114,9 @@ impl Engine {
     }
 
     async fn handle_dispute(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
-        match self
-            .database
-            .lock()
-            .expect("Lock poisoned!")
-            .get_mut(&record.client)
-        {
+        let mut database = self.database.lock().expect("Lock poisoned!");
+
+        match database.get_mut(&record.client) {
             Some(account) => match account.operations.get_mut(&record.tx) {
                 Some(transaction) => {
                     if account.available >= transaction.amount {
@@ -149,12 +141,9 @@ impl Engine {
     }
 
     async fn handle_resolve(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
-        match self
-            .database
-            .lock()
-            .expect("Lock poisoned!")
-            .get_mut(&record.client)
-        {
+        let mut database = self.database.lock().expect("Lock poisoned!");
+
+        match database.get_mut(&record.client) {
             Some(account) => {
                 match account.operations.get_mut(&record.tx) {
                     Some(transaction) => {
@@ -181,12 +170,9 @@ impl Engine {
     }
 
     async fn handle_chargeback(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
-        match self
-            .database
-            .lock()
-            .expect("Lock poisoned!")
-            .get_mut(&record.client)
-        {
+        let mut database = self.database.lock().expect("Lock poisoned!");
+
+        match database.get_mut(&record.client) {
             Some(account) => {
                 match account.operations.get_mut(&record.tx) {
                     Some(transaction) => {
