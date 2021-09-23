@@ -14,6 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut engine: Engine = Engine::new();
     let file = File::open(input_file_path)?;
     let mut reader = csv::Reader::from_reader(file);
+    // Check if it's possible to add tokio Stream
     for result in reader.deserialize() {
         match result {
             Ok(record) => {

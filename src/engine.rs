@@ -197,3 +197,112 @@ impl Engine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // TODO: Write macro for assertions to simplify code
+    #[tokio::test]
+    async fn deposit_when_client_does_not_exist() {
+        let mut engine = Engine::new();
+        let client_id: u16 = 1;
+        let tx: u32 = 123;
+        let input_record = InputRecord {
+            oper_type: "deposit".to_string(),
+            client: client_id,
+            tx,
+            amount: 34.5,
+        };
+
+        let mut expected_operations = HashMap::new();
+        expected_operations.insert(tx, Operation::new(OperType::Deposit, 34.5));
+        let expected_account_state = Account {
+            available: 34.5,
+            held: 0.0,
+            locked: false,
+            disputed_trans: 0,
+            operations: expected_operations,
+        };
+
+        assert!(engine.process_record(input_record).await.is_ok());
+
+        let database = engine.database.lock().unwrap();
+        let actual_account_state = database.get(&client_id);
+        assert!(actual_account_state.is_some());
+
+        let actual_account_state = actual_account_state.unwrap();
+
+        assert_eq!(
+            expected_account_state.available,
+            actual_account_state.available
+        );
+        assert_eq!(expected_account_state.held, actual_account_state.held);
+        assert_eq!(expected_account_state.locked, actual_account_state.locked);
+        assert_eq!(
+            expected_account_state.disputed_trans,
+            actual_account_state.disputed_trans
+        );
+        assert_eq!(
+            expected_account_state.operations.get(&tx).unwrap(),
+            actual_account_state.operations.get(&tx).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn withdraw_money_from_account() {
+        let mut engine = Engine::new();
+        let client_id: u16 = 1;
+        let tx: u32 = 123;
+        let deposit_record = InputRecord {
+            oper_type: "deposit".to_string(),
+            client: client_id,
+            tx: 12,
+            amount: 34.5,
+        };
+
+        assert!(engine.process_record(deposit_record).await.is_ok());
+
+        let input_record = InputRecord {
+            oper_type: "withdrawal".to_string(),
+            client: client_id,
+            tx,
+            amount: 14.5,
+        };
+
+        let mut expected_operations = HashMap::new();
+        expected_operations.insert(12, Operation::new(OperType::Deposit, 34.5));
+        expected_operations.insert(tx, Operation::new(OperType::Withdrawal, 14.5));
+        let expected_account_state = Account {
+            available: 20.0,
+            held: 0.0,
+            locked: false,
+            disputed_trans: 0,
+            operations: expected_operations,
+        };
+
+        assert!(engine.process_record(input_record).await.is_ok());
+
+        let database = engine.database.lock().unwrap();
+        let actual_account_state = database.get(&client_id);
+        assert!(actual_account_state.is_some());
+
+        let actual_account_state = actual_account_state.unwrap();
+
+        assert_eq!(
+            expected_account_state.available,
+            actual_account_state.available
+        );
+        assert_eq!(expected_account_state.held, actual_account_state.held);
+        assert_eq!(expected_account_state.locked, actual_account_state.locked);
+        assert_eq!(
+            expected_account_state.disputed_trans,
+            actual_account_state.disputed_trans
+        );
+        assert_eq!(actual_account_state.operations.len(), 2 as usize);
+        assert_eq!(
+            expected_account_state.operations.get(&tx).unwrap(),
+            actual_account_state.operations.get(&tx).unwrap()
+        );
+    }
+}

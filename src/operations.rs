@@ -1,7 +1,7 @@
 use crate::errors::TransactionError;
 use std::str::FromStr;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Operation {
     pub trans_type: OperType,
     pub amount: f32,
@@ -18,7 +18,7 @@ impl Operation {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OperType {
     Deposit,
     Withdrawal,
