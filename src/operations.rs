@@ -1,4 +1,4 @@
-use crate::errors::AppError;
+use crate::errors::TransactionError;
 use std::str::FromStr;
 
 pub struct Operation {
@@ -26,7 +26,7 @@ pub enum OperType {
 }
 
 impl FromStr for OperType {
-    type Err = AppError;
+    type Err = TransactionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {

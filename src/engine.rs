@@ -1,4 +1,5 @@
 use crate::data_records::InputRecord;
+use crate::errors::TransactionError;
 use crate::operations::{OperType, Operation};
 
 use std::collections::HashMap;
@@ -23,9 +24,8 @@ impl Engine {
         }
     }
 
-    pub fn process_record(&mut self, record: InputRecord) {
-        let operation =
-            OperType::from_str(&record.oper_type).expect("This should be correct value");
+    pub fn process_record(&mut self, record: InputRecord) -> Result<(), TransactionError> {
+        let operation = OperType::from_str(&record.oper_type)?;
         match operation {
             OperType::Deposit => self.handle_deposit(&record),
             OperType::Withdrawal => self.handle_withdrawal(&record),
@@ -35,7 +35,7 @@ impl Engine {
         }
     }
 
-    fn handle_deposit(&mut self, record: &InputRecord) {
+    fn handle_deposit(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         match self.database.get_mut(&record.client) {
             Some(account) => {
                 if !account.locked {
@@ -43,8 +43,9 @@ impl Engine {
                     account
                         .operations
                         .insert(record.tx, Operation::new(OperType::Deposit, record.amount));
+                    Ok(())
                 } else {
-                    // TODO: Account is locked
+                    Err(TransactionError::AccountIsLocked(record.tx, record.client))
                 }
             }
             None => {
@@ -60,11 +61,12 @@ impl Engine {
                         operations,
                     },
                 );
+                Ok(())
             }
         }
     }
 
-    fn handle_withdrawal(&mut self, record: &InputRecord) {
+    fn handle_withdrawal(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         match self.database.get_mut(&record.client) {
             Some(account) => {
                 if !account.locked {
@@ -74,44 +76,48 @@ impl Engine {
                             record.tx,
                             Operation::new(OperType::Withdrawal, record.amount),
                         );
+                        Ok(())
                     } else {
-                        // TODO: Account is locked
+                        Err(TransactionError::NotEnoughFundsToWithdraw(
+                            record.tx,
+                            account.available,
+                            record.amount,
+                        ))
                     }
+                } else {
+                    Err(TransactionError::AccountIsLocked(record.tx, record.client))
                 }
             }
-            None => {
-                // TODO: Client doesn't exist
-            }
+            None => Err(TransactionError::ClientDoesnExist(record.tx, record.client)),
         }
     }
 
-    fn handle_dispute(&mut self, record: &InputRecord) {
+    fn handle_dispute(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         match self.database.get_mut(&record.client) {
-            Some(account) => {
-                match account.operations.get_mut(&record.tx) {
-                    Some(transaction) => {
-                        if account.available >= transaction.amount {
-                            account.available -= transaction.amount;
-                            account.held += transaction.amount;
-                            transaction.under_dispute = true;
-                            account.locked = true;
-                            account.disputed_trans += 1;
-                        } else {
-                            // TODO: Not enought funds to held
-                        }
-                    }
-                    None => {
-                        // TODO: Referenced transaction doesn't exist
+            Some(account) => match account.operations.get_mut(&record.tx) {
+                Some(transaction) => {
+                    if account.available >= transaction.amount {
+                        account.available -= transaction.amount;
+                        account.held += transaction.amount;
+                        transaction.under_dispute = true;
+                        account.locked = true;
+                        account.disputed_trans += 1;
+                        Ok(())
+                    } else {
+                        Err(TransactionError::NotEnoughFundsToHeld(
+                            record.tx,
+                            account.available,
+                            transaction.amount,
+                        ))
                     }
                 }
-            }
-            None => {
-                // TODO: Client doesn't exist
-            }
+                None => Err(TransactionError::ReferencedTransDoesntExist(record.tx)),
+            },
+            None => Err(TransactionError::ClientDoesnExist(record.tx, record.client)),
         }
     }
 
-    fn handle_resolve(&mut self, record: &InputRecord) {
+    fn handle_resolve(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         match self.database.get_mut(&record.client) {
             Some(account) => {
                 match account.operations.get_mut(&record.tx) {
@@ -123,25 +129,22 @@ impl Engine {
                             account.available += transaction.amount;
                             transaction.under_dispute = false;
                             account.disputed_trans -= 1;
-                            if account.disputed_trans <= 0 {
+                            if account.disputed_trans == 0 {
                                 account.locked = false;
                             }
+                            Ok(())
                         } else {
-                            // TODO: Referenced transaction is not under dispute
+                            Err(TransactionError::ReferencedTransIsNotDisputed(record.tx))
                         }
                     }
-                    None => {
-                        // TODO: Referenced transaction doesn't exist
-                    }
+                    None => Err(TransactionError::ReferencedTransDoesntExist(record.tx)),
                 }
             }
-            None => {
-                // TODO: Client doesn't exist
-            }
+            None => Err(TransactionError::ClientDoesnExist(record.tx, record.client)),
         }
     }
 
-    fn handle_chargeback(&mut self, record: &InputRecord) {
+    fn handle_chargeback(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         match self.database.get_mut(&record.client) {
             Some(account) => {
                 match account.operations.get_mut(&record.tx) {
@@ -152,21 +155,18 @@ impl Engine {
                             account.held -= transaction.amount;
                             transaction.under_dispute = false;
                             account.disputed_trans -= 1;
-                            if account.disputed_trans <= 0 {
+                            if account.disputed_trans == 0 {
                                 account.locked = false;
                             }
+                            Ok(())
                         } else {
-                            // TODO: Referenced transaction is not under dispute
+                            Err(TransactionError::ReferencedTransIsNotDisputed(record.tx))
                         }
                     }
-                    None => {
-                        // TODO: Referenced transaction doesn't exist
-                    }
+                    None => Err(TransactionError::ReferencedTransDoesntExist(record.tx)),
                 }
             }
-            None => {
-                // TODO: Client doesn't exist
-            }
+            None => Err(TransactionError::ClientDoesnExist(record.tx, record.client)),
         }
     }
 }
