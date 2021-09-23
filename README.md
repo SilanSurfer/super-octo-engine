@@ -3,6 +3,10 @@ Handling of transactions in CSV
 
 ## Assumptions
 
+### Precision
+
+Values like `amount`, `held` and `total` are stored as `f32` variables and are formatted in the final output to have precision to four places past the decimal.
+
 ### Error handling
 
 If any error happens while processing transaction then message is printed out with `eprintln!` when output is redirected to file using `>` then error prints should be ignored by OS.
