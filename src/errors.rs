@@ -16,4 +16,6 @@ pub enum TransactionError {
     ReferencedTransIsNotDisputed(u32),
     #[error("Account of client ({1}) is locked, tx = {0}")]
     AccountIsLocked(u32, u16),
+    #[error("Missing amount value, tx = {0}")]
+    MissingAmountValue(u32),
 }

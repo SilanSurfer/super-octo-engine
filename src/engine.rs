@@ -54,14 +54,17 @@ impl Engine {
     // TODO: Refactor all "handle" functions...
     async fn handle_deposit(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         let mut database = self.database.lock().expect("Lock poisoned!");
+        let amount = record
+            .amount
+            .ok_or(TransactionError::MissingAmountValue(record.tx))?;
 
         match database.get_mut(&record.client) {
             Some(account) => {
                 if !account.locked {
-                    account.available += record.amount;
+                    account.available += amount;
                     account
                         .operations
-                        .insert(record.tx, Operation::new(OperType::Deposit, record.amount));
+                        .insert(record.tx, Operation::new(OperType::Deposit, amount));
                     Ok(())
                 } else {
                     Err(TransactionError::AccountIsLocked(record.tx, record.client))
@@ -69,11 +72,11 @@ impl Engine {
             }
             None => {
                 let mut operations = HashMap::new();
-                operations.insert(record.tx, Operation::new(OperType::Deposit, record.amount));
+                operations.insert(record.tx, Operation::new(OperType::Deposit, amount));
                 database.insert(
                     record.client,
                     Account {
-                        available: record.amount,
+                        available: amount,
                         held: 0.0,
                         locked: false,
                         disputed_trans: 0,
@@ -87,22 +90,24 @@ impl Engine {
 
     async fn handle_withdrawal(&mut self, record: &InputRecord) -> Result<(), TransactionError> {
         let mut database = self.database.lock().expect("Lock poisoned!");
+        let amount = record
+            .amount
+            .ok_or(TransactionError::MissingAmountValue(record.tx))?;
 
         match database.get_mut(&record.client) {
             Some(account) => {
                 if !account.locked {
-                    if account.available >= record.amount {
-                        account.available -= record.amount;
-                        account.operations.insert(
-                            record.tx,
-                            Operation::new(OperType::Withdrawal, record.amount),
-                        );
+                    if account.available >= amount {
+                        account.available -= amount;
+                        account
+                            .operations
+                            .insert(record.tx, Operation::new(OperType::Withdrawal, amount));
                         Ok(())
                     } else {
                         Err(TransactionError::NotEnoughFundsToWithdraw(
                             record.tx,
                             account.available,
-                            record.amount,
+                            amount,
                         ))
                     }
                 } else {
@@ -212,7 +217,7 @@ mod tests {
             oper_type: "deposit".to_string(),
             client: client_id,
             tx,
-            amount: 34.5,
+            amount: Some(34.5),
         };
 
         let mut expected_operations = HashMap::new();
@@ -258,7 +263,7 @@ mod tests {
             oper_type: "deposit".to_string(),
             client: client_id,
             tx: 12,
-            amount: 34.5,
+            amount: Some(34.5),
         };
 
         assert!(engine.process_record(deposit_record).await.is_ok());
@@ -267,7 +272,7 @@ mod tests {
             oper_type: "withdrawal".to_string(),
             client: client_id,
             tx,
-            amount: 14.5,
+            amount: Some(14.5),
         };
 
         let mut expected_operations = HashMap::new();

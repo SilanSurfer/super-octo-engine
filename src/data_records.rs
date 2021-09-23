@@ -6,7 +6,7 @@ pub struct InputRecord {
     pub oper_type: String,
     pub client: u16,
     pub tx: u32,
-    pub amount: f32,
+    pub amount: Option<f32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -32,7 +32,7 @@ deposit,1,1,1.0
             oper_type: "deposit".to_string(),
             client: 1,
             tx: 1,
-            amount: 1.0,
+            amount: Some(1.0),
         };
 
         let mut reader = csv::Reader::from_reader(csv_input.as_bytes());
