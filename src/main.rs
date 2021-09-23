@@ -8,7 +8,8 @@ use engine::Engine;
 
 use std::fs::File;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input_file_path = cli::Opt::get_input_file();
     let mut engine: Engine = Engine::new();
     let file = File::open(input_file_path)?;
@@ -17,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match result {
             Ok(record) => {
                 println!("{:?}", record);
-                if let Err(e) = engine.process_record(record) {
+                if let Err(e) = engine.process_record(record).await {
                     eprintln!("Error: {:?}", e);
                 }
             }
@@ -26,5 +27,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
+    engine.output();
     Ok(())
 }
