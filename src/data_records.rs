@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use csv::{Reader, ReaderBuilder, Trim};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct InputRecord {
@@ -9,13 +10,14 @@ pub struct InputRecord {
     pub amount: Option<f32>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct OutputRecord {
-    client: u16,
-    available: f32,
-    held: f32,
-    total: f32,
-    locked: bool,
+pub fn build_reader<T>(input: T) -> Reader<T>
+where
+    T: std::io::Read,
+{
+    ReaderBuilder::new()
+        .flexible(true)
+        .trim(Trim::All)
+        .from_reader(input)
 }
 
 #[cfg(test)]
@@ -35,7 +37,7 @@ deposit,1,1,1.0
             amount: Some(1.0),
         };
 
-        let mut reader = csv::Reader::from_reader(csv_input.as_bytes());
+        let mut reader = build_reader(csv_input.as_bytes());
         let actual_input_record: InputRecord = reader
             .deserialize()
             .next()
@@ -45,27 +47,24 @@ deposit,1,1,1.0
     }
 
     #[test]
-    fn test_serialization_of_output() {
-        let output_record = OutputRecord {
-            client: 1,
-            available: 1.5,
-            held: 0.0,
-            total: 1.5,
-            locked: false,
-        };
-        let expected_csv_output = "\
-client,available,held,total,locked
-1,1.5,0.0,1.5,false
+    fn test_deserialization_of_input_with_whitespaces_and_tabs() {
+        let csv_input = "\
+type, client, tx, amount
+deposit, 1, 1,      1.0
 ";
+        let expected_input_record = InputRecord {
+            oper_type: "deposit".to_string(),
+            client: 1,
+            tx: 1,
+            amount: Some(1.0),
+        };
 
-        let mut writer = csv::Writer::from_writer(vec![]);
-        writer
-            .serialize(output_record)
-            .expect("Should be properly serialized");
-        let actual_csv_output =
-            String::from_utf8(writer.into_inner().expect("Should convert to inner"))
-                .expect("Should convert to UTF-8");
-
-        assert_eq!(expected_csv_output, actual_csv_output);
+        let mut reader = build_reader(csv_input.as_bytes());
+        let actual_input_record: InputRecord = reader
+            .deserialize()
+            .next()
+            .expect("It shouldn't be empty")
+            .expect("Should be properly deserialized");
+        assert_eq!(expected_input_record, actual_input_record);
     }
 }
